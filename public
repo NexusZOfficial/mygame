@@ -1,1 +1,1490 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>LAN Dot Survival - Game</title>
+  <style>
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #768f5a; /* Dark green base */
+  background-size: 40px 40px; /* Grid cell size */
+  height: 100%;
+  width: 100%;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#gameUI {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  color: white;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 10px;
+  border-radius: 5px;
+  z-index: 10;
+}
+
+#backBtn {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: #f00;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  z-index: 10;
+}
+
+#backBtn:hover {
+  background: #f55;
+}
+
+canvas {
+  display: block;
+  cursor: none;
+}
+
+#crosshair {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: rgb(255, 255, 255);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 5;
+  display: none;
+}
+
+/* HOTBAR STYLES */
+#hotbar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  z-index: 50;
+  padding: 12px 25px;
+  background: rgba(50, 80, 40, 0.9);
+  border-radius: 15px;
+  border: 2px solid #6fa66f;
+  box-shadow: 0 0 20px rgba(0,0,0,0.6);
+}
+
+.hotbar-slot {
+  width: 60px;
+  height: 60px;
+  background: rgba(255,255,255,0.1);
+  border: 2px solid #6fa66f;
+  border-radius: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.hotbar-slot:hover {
+  transform: scale(1.15);
+  box-shadow: 0 0 12px #a5e6a5;
+}
+
+.hotbar-slot.active {
+  border: 2px solid #e74c3c;
+  box-shadow: 0 0 12px rgba(231, 76, 60, 0.6);
+  transform: scale(1.1);
+}
+
+/* INVENTORY STYLES */
+#inventory {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  grid-template-columns: repeat(5, 80px);
+  gap: 12px;
+  background: rgba(50, 80, 40, 0.85);
+  padding: 20px;
+  border-radius: 15px;
+  border: 2px solid #6fa66f;
+  box-shadow: 0 0 20px rgba(0,0,0,0.6);
+  z-index: 100;
+  display: none;
+  backdrop-filter: blur(2px);
+}
+
+.slot {
+  width: 70px;
+  height: 70px;
+  background: rgba(255,255,255,0.1);
+  border: 2px solid #6fa66f;
+  border-radius: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.slot:hover {
+  transform: scale(1.15);
+  box-shadow: 0 0 12px #a5e6a5;
+}
+
+.dropped-item {
+  position: absolute;
+  transition: transform 0.5s ease-out;
+  z-index: 2;
+}
+
+@keyframes bounce {
+  0% { transform: translateY(0) scale(1); }
+  25% { transform: translateY(-15px) scale(1.1); }
+  50% { transform: translateY(0) scale(1); }
+  75% { transform: translateY(-7px) scale(1.05); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes glow {
+  0% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.8); }
+  100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.5); }
+}
+
+.bounce-animation {
+  animation: bounce 0.8s ease-out;
+}
+
+.glow-animation {
+  animation: glow 2s infinite;
+}
+
+.item {
+  width: 55px;
+  height: 55px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  color: white;
+  cursor: grab;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  transform: rotate(45deg);
+  transition: transform 0.2s ease;
+}
+
+.item:hover {
+  transform: rotate(45deg) scale(1.1);
+}
+
+.item::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.3), transparent);
+  pointer-events: none;
+}
+
+.item:active {
+  cursor: grabbing;
+}
+
+.tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.3s;
+  max-width: 200px;
+  text-align: center;
+}
+
+.tooltip.show {
+  opacity: 1;
+}
+
+.item-count {
+  position: absolute;
+  bottom: 3px;
+  right: 5px;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+.item-dragging {
+  opacity: 0.8;
+  transform: rotate(5deg);
+  z-index: 1000;
+}
+
+.inventory-title {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  color: #fff;
+  font-size: 20px;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+}
+
+.inventory-keybind {
+  position: absolute;
+  bottom: -30px;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  font-size: 13px;
+  color: #d0e6cc;
+  text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+}
+
+/* Different item types */
+.item.weapon {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+
+.item.armor {
+  background: linear-gradient(135deg, #3498db, #2980b9);
+}
+
+.item.consumable {
+  background: linear-gradient(135deg, #2ecc71, #27ae60);
+}
+
+.item.resource {
+  background: linear-gradient(135deg, #f39c12, #d35400);
+}
+
+.item.quest {
+  background: linear-gradient(135deg, #9b59b6, #8e44ad);
+}
+
+.item.key {
+  background: linear-gradient(135deg, #ff9ff3, #f368e0);
+}
+
+/* Item-specific styles */
+.item.stick {
+  background: linear-gradient(135deg, #8B4513, #5D2906);
+  border: 2px solid #5D2906;
+}
+
+.item.stick::before {
+  content: '';
+  position: absolute;
+  width: 70%;
+  height: 20%;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(139, 69, 19, 0.5) 10%, 
+    transparent 20%,
+    rgba(93, 41, 6, 0.6) 30%,
+    transparent 40%,
+    rgba(139, 69, 19, 0.5) 50%,
+    transparent 60%,
+    rgba(93, 41, 6, 0.6) 70%,
+    transparent 80%,
+    rgba(139, 69, 19, 0.5) 90%,
+    transparent 100%
+  );
+  transform: rotate(-45deg);
+}
+
+/* Hotbar numbers */
+.hotbar-number {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: bold;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Ground item styles */
+.ground-item {
+  position: absolute;
+  width: 8px;
+  height: 40px;
+  transform: translate(-50%, -50%) rotate(0deg);
+  z-index: 4;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.7);
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ground-item.weapon {
+  background: linear-gradient(to bottom, #8B4513, #5D2906);
+  border: 1px solid #5D2906;
+}
+
+.ground-item.armor {
+  background: linear-gradient(135deg, #3498db, #2980b9);
+}
+
+.ground-item.consumable {
+  background: linear-gradient(135deg, #2ecc71, #27ae60);
+}
+
+.ground-item.resource {
+  background: linear-gradient(135deg, #f39c12, #d35400);
+}
+
+.ground-item.quest {
+  background: linear-gradient(135deg, #9b59b6, #8e44ad);
+}
+
+.ground-item.key {
+  background: linear-gradient(135deg, #ff9ff3, #f368e0);
+}
+
+/* Pickup prompt - positioned next to the item */
+.pickup-prompt {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 5px;
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 20;
+  transform: translate(20px, -50%);
+  white-space: nowrap;
+}
+
+.pickup-prompt::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -5px;
+  margin-top: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent rgba(0, 0, 0, 0.8) transparent transparent;
+}
+
+/* Item glow effect */
+.ground-item.glow {
+  animation: item-glow 2s infinite;
+}
+
+@keyframes item-glow {
+  0% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.5); }
+  50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.8); }
+  100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.5); }
+}
+
+/* Wood texture for stick items */
+.stick-texture {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(139, 69, 19, 0.3) 10%, 
+    transparent 20%,
+    rgba(93, 41, 6, 0.4) 30%,
+    transparent 40%,
+    rgba(139, 69, 19, 0.3) 50%,
+    transparent 60%,
+    rgba(93, 41, 6, 0.4) 70%,
+    transparent 80%,
+    rgba(139, 69, 19, 0.3) 90%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+/* Stack count badge for ground items */
+.stack-count {
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  background: rgba(0,0,0,0.8);
+  color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.health-bar {
+  position: absolute;
+  width: 40px;
+  height: 6px;
+  background: #333;
+  border: 2px solid #222;
+  border-radius: 3px;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  overflow: hidden;
+}
+
+.health-fill {
+  height: 100%;
+  background: linear-gradient(to right, #4caf50, #2e7d32);
+  transition: width 0.3s ease;
+}
+
+/* Attack Animation */
+@keyframes attackSwing {
+  0% { transform: rotate(0deg); }
+  50% { transform: rotate(-45deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.attacking {
+  animation: attackSwing 0.3s ease;
+}
+
+/* Dummy Styles */
+.dummy {
+  position: absolute;
+  background: #888;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  border: 2px solid #555;
+}
+
+/* Damage Text */
+.damage-text {
+  position: absolute;
+  color: #ff0000;
+  font-weight: bold;
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 10;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  animation: floatUp 1s ease-out forwards;
+}
+
+@keyframes floatUp {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+}
+
+/* Cooldown Indicator */
+.cooldown-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  border-radius: 10px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.cooldown-active .cooldown-overlay {
+  opacity: 1;
+}
+
+  </style>
+</head>
+<body>
+
+<div id="gameUI">
+    <div>Players: <span id="playerCount">0</span></div>
+    <div>Your name: <span id="playerName"></span></div>
+  </div>
+  
+  <button id="backBtn">Back to Menu</button>
+  <canvas id="gameCanvas"></canvas>
+  <div id="crosshair"></div>
+  
+  <!-- HOTBAR -->
+  <div id="hotbar">
+    <div class="hotbar-slot active" data-slot="0"></div>
+    <div class="hotbar-slot" data-slot="1"></div>
+    <div class="hotbar-slot" data-slot="2"></div>
+    <div class="hotbar-slot" data-slot="3"></div>
+    <div class="hotbar-slot" data-slot="4"></div>
+  </div>
+  
+  <!-- INVENTORY -->
+  <div id="inventory">
+    <h2 class="inventory-title">INVENTORY</h2>
+    
+    <!-- 15 inventory slots (3 rows of 5) -->
+    <div class="slot" data-slot="5"></div>
+    <div class="slot" data-slot="6"></div>
+    <div class="slot" data-slot="7"></div>
+    <div class="slot" data-slot="8"></div>
+    <div class="slot" data-slot="9"></div>
+    
+    <div class="slot" data-slot="10"></div>
+    <div class="slot" data-slot="11"></div>
+    <div class="slot" data-slot="12"></div>
+    <div class="slot" data-slot="13"></div>
+    <div class="slot" data-slot="14"></div>
+    
+    <div class="slot" data-slot="15"></div>
+    <div class="slot" data-slot="16"></div>
+    <div class="slot" data-slot="17"></div>
+    <div class="slot" data-slot="18"></div>
+    <div class="slot" data-slot="19"></div>
+    
+    <div class="inventory-keybind">Press E to close inventory</div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const playerCountElement = document.getElementById('playerCount');
+    const playerNameElement = document.getElementById('playerName');
+    const crosshair = document.getElementById('crosshair');
+    const inventory = document.getElementById('inventory');
+    const hotbar = document.getElementById('hotbar');
+
+    let players = {};
+    let playerId = null;
+    const username = localStorage.getItem('username');
+    
+    // Ground items
+    let groundItems = {};
+    let nearbyItem = null;
+
+    // Camera position (centered on player)
+    let cameraX = 0;
+    let cameraY = 0;
+
+    // World dimensions (larger than the screen)
+    const WORLD_WIDTH = 2000;
+    const WORLD_HEIGHT = 2000;
+
+    // Inventory state
+    let inventoryVisible = false;
+    let inventoryItems = {};
+    let dragItem = null;
+    let dragSourceSlot = null;
+
+    // Max stack size
+    const MAX_STACK_SIZE = 50;
+
+    // Redirect to menu if no username
+    if (!username) {
+      window.location.href = 'index.html';
+    }
+
+    playerNameElement.textContent = username;
+
+    // Make canvas fullscreen
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Back to menu button
+    document.getElementById('backBtn').onclick = () => {
+      socket.disconnect();
+      window.location.href = 'index.html';
+    };
+
+    // Send join event with username
+    const color = localStorage.getItem('playerColor') || '#8b5a2b';
+    socket.emit('join', { username, color });
+
+    // Movement
+    const keys = {};
+    window.addEventListener('keydown', e => {
+      keys[e.key] = true;
+      
+      // Toggle inventory with E key (doesn't affect hotbar)
+      if (e.key === 'e' || e.key === 'E') {
+        toggleInventory();
+      }
+      
+      // Hotbar selection with number keys
+      if (e.key >= '1' && e.key <= '5') {
+        selectHotbarSlot(parseInt(e.key) - 1);
+      }
+      
+      // Drop item with Q key
+      if (e.key === 'q' || e.key === 'Q') {
+        dropItem();
+      }
+      
+      // Pick up item with F key
+      if (e.key === 'f' || e.key === 'F') {
+        pickupItem();
+      }
+    });
+    window.addEventListener('keyup', e => keys[e.key] = false);
+
+    // Mouse tracking for rotation
+    let mouseX = canvas.width / 2, mouseY = canvas.height / 2;
+    let lastRotation = 0;
+    let rotationUpdateRate = 5; // Update every 5 frames
+    let frameCount = 0;
+    
+    window.addEventListener('mousemove', e => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      
+      // Update crosshair position
+      crosshair.style.left = `${mouseX}px`;
+      crosshair.style.top = `${mouseY}px`;
+      crosshair.style.display = 'block';
+    });
+
+    // Convert world coordinates to screen coordinates
+    function worldToScreen(worldX, worldY) {
+      return {
+        x: worldX - cameraX + canvas.width / 2,
+        y: worldY - cameraY + canvas.height / 2
+      };
+    }
+    
+    // Convert screen coordinates to world coordinates
+    function screenToWorld(screenX, screenY) {
+      return {
+        x: screenX + cameraX - canvas.width / 2,
+        y: screenY + cameraY - canvas.height / 2
+      };
+    }
+
+    // Create tooltip element
+    const tooltip = document.createElement('div');
+    tooltip.className = 'tooltip';
+    document.body.appendChild(tooltip);
+
+    // Show tooltip
+    function showTooltip(text, x, y) {
+      tooltip.textContent = text;
+      tooltip.style.left = `${x + 15}px`;
+      tooltip.style.top = `${y - 15}px`;
+      tooltip.classList.add('show');
+    }
+
+    // Hide tooltip
+    function hideTooltip() {
+      tooltip.classList.remove('show');
+    }
+
+    // Initialize inventory with default items
+    function initInventory() {
+      // Clear existing items
+      document.querySelectorAll('.item').forEach(item => item.remove());
+      inventoryItems = {};
+      
+      // Add the default start item to hotbar slot 0
+      addItemToInventory({
+        id: 'startitem',
+        name: 'Wooden Stick',
+        type: 'weapon',
+        count: 5,
+        originalCount: 5,
+        slot: 0,
+        image: 'items/starteritem.png'
+      });
+      
+      // Notify server about the equipped starter item
+      socket.emit('equipItem', {
+        id: 'startitem',
+        name: 'Wooden Stick',
+        type: 'weapon',
+        count: 5,
+        slot: 0,
+        image: 'items/starteritem.png'
+      });
+    }
+
+    // Add item to inventory
+    function addItemToInventory(itemData) {
+      // Validate item data
+      if (!itemData || typeof itemData !== 'object') {
+    console.error('Invalid item data:', itemData);
+    return false;
+  }
+  
+  // Set default values if missing
+  itemData.id = itemData.id || 'unknown';
+  itemData.name = itemData.name || 'Unknown Item';
+  itemData.type = itemData.type || 'resource';
+  itemData.count = itemData.count || 1;
+  
+  // Don't use originalCount for picked up items
+  if (itemData.originalCount) {
+    delete itemData.originalCount;
+  }
+      
+      // First try to stack with existing items of the same type
+      for (let slot in inventoryItems) {
+        if (inventoryItems[slot].id === itemData.id && inventoryItems[slot].count < MAX_STACK_SIZE) {
+          const existingItem = document.querySelector(`[data-slot="${slot}"] .item`);
+          if (existingItem) {
+            const availableSpace = MAX_STACK_SIZE - parseInt(existingItem.dataset.count);
+            const addAmount = Math.min(itemData.count, availableSpace);
+            const newCount = parseInt(existingItem.dataset.count) + addAmount;
+            
+            existingItem.dataset.count = newCount;
+            
+            // Update count display
+            let countElem = existingItem.querySelector('.item-count');
+            if (!countElem) {
+              countElem = document.createElement('span');
+              countElem.className = 'item-count';
+              existingItem.appendChild(countElem);
+            }
+            countElem.textContent = newCount;
+            
+            // Update inventory state
+            inventoryItems[slot].count = newCount;
+            
+            // If we still have items left to add, recursively add the rest
+            if (itemData.count > addAmount) {
+              const remainingItems = {...itemData};
+              remainingItems.count = itemData.count - addAmount;
+              return addItemToInventory(remainingItems);
+            }
+            
+            return true;
+          }
+        }
+      }
+      
+      // If couldn't stack, find an empty slot
+      let emptySlot = findEmptySlot();
+      if (emptySlot === -1) return false;
+      
+      // Don't add more than max stack size to a new slot
+      const addAmount = Math.min(itemData.count, MAX_STACK_SIZE);
+      itemData.count = addAmount;
+      itemData.slot = emptySlot;
+      
+      const slot = document.querySelector(`[data-slot="${emptySlot}"]`);
+      if (!slot) return false;
+      
+      const item = document.createElement('div');
+      item.className = `item ${itemData.type}`;
+      item.draggable = true;
+      item.dataset.id = itemData.id;
+      item.dataset.slot = itemData.slot;
+      item.dataset.type = itemData.type;
+      item.dataset.name = itemData.name;
+      item.dataset.count = itemData.count;
+      item.dataset.image = itemData.image || '';
+      
+      // Add item name (first letter for display)
+      item.textContent = itemData.name.charAt(0);
+      
+      // Add count if more than 1
+      if (itemData.count > 1) {
+        const countElem = document.createElement('span');
+        countElem.className = 'item-count';
+        countElem.textContent = itemData.count;
+        item.appendChild(countElem);
+      }
+      
+      // Add drag event listeners
+      item.addEventListener('dragstart', handleDragStart);
+      item.addEventListener('dragend', handleDragEnd);
+      
+      // Add tooltip events
+      item.addEventListener('mouseenter', handleItemHover);
+      item.addEventListener('mouseleave', hideTooltip);
+      
+      slot.appendChild(item);
+      inventoryItems[itemData.slot] = itemData;
+      
+      // Update equipped item if placed in active hotbar slot
+      const activeSlot = document.querySelector('.hotbar-slot.active').dataset.slot;
+      if (itemData.slot == activeSlot) {
+        updateEquippedItem();
+      }
+      
+      // If we still have items left to add, recursively add the rest
+      if (itemData.originalCount && itemData.count < itemData.originalCount) {
+        const remainingItems = {...itemData};
+        remainingItems.count = itemData.originalCount - itemData.count;
+        remainingItems.originalCount = remainingItems.count;
+        return addItemToInventory(remainingItems);
+      }
+      
+      return true;
+    }
+    
+    // Find empty slot in inventory or hotbar
+    function findEmptySlot() {
+      // Check hotbar first (slots 0-4)
+      for (let i = 0; i < 5; i++) {
+        if (!inventoryItems[i]) return i;
+      }
+      
+      // Then check inventory (slots 5-19)
+      for (let i = 5; i < 20; i++) {
+        if (!inventoryItems[i]) return i;
+      }
+      
+      return -1; // No empty slots
+    }
+
+    // Handle item hover for tooltip
+    function handleItemHover(e) {
+      const rect = this.getBoundingClientRect();
+      showTooltip(this.dataset.name, rect.right, rect.top);
+    }
+
+    // Handle drag start
+    function handleDragStart(e) {
+      dragItem = this;
+      dragSourceSlot = this.parentElement;
+      
+      // Store original count for potential restacking
+      this.dataset.originalCount = this.dataset.count;
+      
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', this.dataset.id);
+      
+      // Add visual feedback
+      this.classList.add('item-dragging');
+      
+      // Hide original element during drag
+      setTimeout(() => this.style.display = 'none', 0);
+    }
+
+    // Handle drag end
+    function handleDragEnd(e) {
+      this.classList.remove('item-dragging');
+      this.style.display = 'flex';
+      
+      dragItem = null;
+      dragSourceSlot = null;
+    }
+
+    // Setup slot event listeners for drag and drop
+    function setupInventorySlots() {
+      const slots = document.querySelectorAll('.slot, .hotbar-slot');
+      
+      slots.forEach(slot => {
+        // Allow items to be dropped
+        slot.addEventListener('dragover', e => {
+          e.preventDefault();
+        });
+        
+        slot.addEventListener('dragenter', e => {
+          e.preventDefault();
+          slot.style.backgroundColor = 'rgba(100, 150, 100, 0.3)';
+        });
+        
+        slot.addEventListener('dragleave', () => {
+          slot.style.backgroundColor = '';
+        });
+        
+        slot.addEventListener('drop', e => {
+          e.preventDefault();
+          slot.style.backgroundColor = '';
+          
+          if (!dragItem) return;
+          
+          const targetSlot = slot.dataset.slot;
+          const sourceSlot = dragSourceSlot.dataset.slot;
+          const dragCount = parseInt(dragItem.dataset.count);
+          
+          // Check if we're dropping on the same slot
+          if (targetSlot === sourceSlot) {
+            return; // No action needed
+          }
+          
+          // Check if slot already has an item
+          if (slot.firstChild && slot.firstChild !== dragItem) {
+            const existingItem = slot.firstChild;
+            
+            // Check if items can be stacked (same ID)
+            if (existingItem.dataset.id === dragItem.dataset.id) {
+              const existingCount = parseInt(existingItem.dataset.count);
+              const availableSpace = MAX_STACK_SIZE - existingCount;
+              
+              if (availableSpace > 0) {
+                // Stack as many items as possible
+                const addAmount = Math.min(dragCount, availableSpace);
+                const newCount = existingCount + addAmount;
+                existingItem.dataset.count = newCount;
+                
+                // Update count display
+                let countElem = existingItem.querySelector('.item-count');
+                if (!countElem) {
+                  countElem = document.createElement('span');
+                  countElem.className = 'item-count';
+                  existingItem.appendChild(countElem);
+                }
+                countElem.textContent = newCount;
+                
+                // Update inventory state
+                inventoryItems[targetSlot].count = newCount;
+                
+                // If we still have items left, update the dragged item
+                if (dragCount > addAmount) {
+                  dragItem.dataset.count = dragCount - addAmount;
+                  const dragCountElem = dragItem.querySelector('.item-count');
+                  if (dragCountElem) {
+                    dragCountElem.textContent = dragCount - addAmount;
+                  } else if (dragCount - addAmount > 1) {
+                    const newCountElem = document.createElement('span');
+                    newCountElem.className = 'item-count';
+                    newCountElem.textContent = dragCount - addAmount;
+                    dragItem.appendChild(newCountElem);
+                  }
+                  
+                  // Update inventory state for source slot
+                  inventoryItems[sourceSlot].count = dragCount - addAmount;
+                  
+                  // Show the dragged item again since we're not removing it
+                  dragItem.style.display = 'flex';
+                } else {
+                  // Remove the dragged item if all items were stacked
+                  dragItem.remove();
+                  delete inventoryItems[sourceSlot];
+                }
+              } else {
+                // No space to stack, swap items
+                dragSourceSlot.appendChild(existingItem);
+                slot.appendChild(dragItem);
+                
+                // Update data attributes
+                existingItem.dataset.slot = sourceSlot;
+                dragItem.dataset.slot = targetSlot;
+                
+                // Update inventory state
+                if (inventoryItems[sourceSlot] && inventoryItems[targetSlot]) {
+                  const temp = inventoryItems[sourceSlot];
+                  inventoryItems[sourceSlot] = inventoryItems[targetSlot];
+                  inventoryItems[targetSlot] = temp;
+                  
+                  // Update slot references
+                  inventoryItems[sourceSlot].slot = parseInt(sourceSlot);
+                  inventoryItems[targetSlot].slot = parseInt(targetSlot);
+                } else if (inventoryItems[sourceSlot]) {
+                  // Only source has an item
+                  inventoryItems[targetSlot] = inventoryItems[sourceSlot];
+                  inventoryItems[targetSlot].slot = parseInt(targetSlot);
+                  delete inventoryItems[sourceSlot];
+                }
+              }
+            } else {
+              // Items are different, swap them
+              dragSourceSlot.appendChild(existingItem);
+              slot.appendChild(dragItem);
+              
+              // Update data attributes
+              existingItem.dataset.slot = sourceSlot;
+              dragItem.dataset.slot = targetSlot;
+              
+              // Update inventory state
+              if (inventoryItems[sourceSlot] && inventoryItems[targetSlot]) {
+                const temp = inventoryItems[sourceSlot];
+                inventoryItems[sourceSlot] = inventoryItems[targetSlot];
+                inventoryItems[targetSlot] = temp;
+                
+                // Update slot references
+                inventoryItems[sourceSlot].slot = parseInt(sourceSlot);
+                inventoryItems[targetSlot].slot = parseInt(targetSlot);
+              } else if (inventoryItems[sourceSlot]) {
+                // Only source has an item
+                inventoryItems[targetSlot] = inventoryItems[sourceSlot];
+                inventoryItems[targetSlot].slot = parseInt(targetSlot);
+                delete inventoryItems[sourceSlot];
+              }
+            }
+          } else {
+            // Move item to empty slot
+            slot.appendChild(dragItem);
+            dragItem.dataset.slot = targetSlot;
+            
+            // Update inventory state
+            if (inventoryItems[sourceSlot]) {
+              inventoryItems[targetSlot] = inventoryItems[sourceSlot];
+              inventoryItems[targetSlot].slot = parseInt(targetSlot);
+              delete inventoryItems[sourceSlot];
+            }
+          }
+          
+          // Update equipped item if needed
+          updateEquippedItem();
+        });
+      });
+    }
+
+    // Update equipped item based on active hotbar slot
+    function updateEquippedItem() {
+      const activeSlot = document.querySelector('.hotbar-slot.active').dataset.slot;
+      
+      // Notify server about equipped item
+      if (inventoryItems[activeSlot]) {
+        socket.emit('equipItem', inventoryItems[activeSlot]);
+      } else {
+        socket.emit('unequipItem');
+      }
+    }
+
+    // Drop item from inventory
+   // Drop item from inventory
+function dropItem() {
+  const activeSlot = document.querySelector('.hotbar-slot.active').dataset.slot;
+  if (inventoryItems[activeSlot] && inventoryItems[activeSlot].count > 0) {
+    const player = players[playerId];
+    const item = {...inventoryItems[activeSlot]}; // Copy item
+    
+    // Only drop one item at a time
+    item.count = 1;
+    // Remove the originalCount property to prevent stacking issues
+    delete item.originalCount;
+    
+    // Calculate drop position in front of player
+    const dropDistance = 40; // Distance in front of player to drop item
+    const dropX = player.x + Math.cos(player.rotation) * dropDistance;
+    const dropY = player.y + Math.sin(player.rotation) * dropDistance;
+    
+    socket.emit('dropItem', {
+      item: item,
+      x: dropX,
+      y: dropY
+    });
+    
+    // Update inventory count
+    inventoryItems[activeSlot].count -= 1;
+    
+    // Update count display
+    const slotElement = document.querySelector(`[data-slot="${activeSlot}"]`);
+    const itemElement = slotElement.querySelector('.item');
+    if (itemElement) {
+      if (inventoryItems[activeSlot].count > 0) {
+        const countElem = itemElement.querySelector('.item-count');
+        countElem.textContent = inventoryItems[activeSlot].count;
+        itemElement.dataset.count = inventoryItems[activeSlot].count;
+      } else {
+        // Remove item if count reaches zero
+        itemElement.remove();
+        delete inventoryItems[activeSlot];
+        
+        // Update equipped item
+        updateEquippedItem();
+      }
+    }
+  }
+}
+    // Pick up nearby item
+    function pickupItem() {
+      if (nearbyItem) {
+        socket.emit('pickupItem', nearbyItem.id);
+      }
+    }
+
+    // Function to check if player is near an item
+    function checkItemProximity() {
+      if (!playerId || !players[playerId]) return;
+      
+      const player = players[playerId];
+      nearbyItem = null;
+      let minDistance = Infinity;
+      
+      // Check all ground items
+      for (let id in groundItems) {
+        const item = groundItems[id];
+        
+        // Skip invalid items
+        if (!item || typeof item.x !== 'number' || typeof item.y !== 'number') {
+          continue;
+        }
+        
+        const dx = player.x - item.x;
+        const dy = player.y - item.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // If item is within pickup range
+        if (distance < 50) { // 50px pickup range
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearbyItem = item;
+          }
+        }
+      }
+    }
+    
+    // Render ground items
+    function renderGroundItems() {
+      // Remove all existing ground item elements
+      document.querySelectorAll('.ground-item').forEach(el => el.remove());
+      
+      // Remove pickup prompt
+      const prompt = document.getElementById('pickup-prompt');
+      if (prompt) prompt.remove();
+      
+      // Create elements for all ground items
+      for (let id in groundItems) {
+        const item = groundItems[id];
+        
+        // Skip if item data is invalid
+        if (!item || !item.item) {
+          console.warn('Invalid ground item data:', item);
+          continue;
+        }
+        
+        const screenPos = worldToScreen(item.x, item.y);
+        
+        const itemEl = document.createElement('div');
+        
+        // Use a default type if item.type is missing
+        const itemType = item.item.type || 'resource';
+        itemEl.className = `ground-item ${itemType} glow`;
+        itemEl.style.left = `${screenPos.x}px`;
+        itemEl.style.top = `${screenPos.y}px`;
+        itemEl.dataset.id = id;
+        
+        // Add wood texture for stick items
+        if (item.item.id === 'startitem') {
+          const texture = document.createElement('div');
+          texture.className = 'stick-texture';
+          itemEl.appendChild(texture);
+        } else {
+          // Use a default character if name is missing
+          const displayChar = item.item.name ? item.item.name.charAt(0) : '?';
+          itemEl.textContent = displayChar;
+        }
+        
+        document.body.appendChild(itemEl);
+        
+        // Show pickup prompt for nearby items
+        if (nearbyItem && nearbyItem.id === id) {
+          const prompt = document.createElement('div');
+          prompt.id = 'pickup-prompt';
+          prompt.className = 'pickup-prompt';
+          
+          // Use a default name if item name is missing
+          const itemName = item.item.name || 'Unknown Item';
+          prompt.textContent = `Press F to pickup ${itemName}`;
+          
+          prompt.style.left = `${screenPos.x + 20}px`;
+          prompt.style.top = `${screenPos.y}px`;
+          document.body.appendChild(prompt);
+        }
+      }
+    }
+
+    // Draw the world background
+    function drawWorld() {
+      // Calculate the visible area of the world
+      const startX = cameraX - canvas.width / 2;
+      const startY = cameraY - canvas.height / 2;
+      
+      // Draw the world background (repeating grid)
+      const gridSize = 40;
+      const gridOffsetX = -startX % gridSize;
+      const gridOffsetY = -startY % gridSize;
+      
+      // Draw grid
+      ctx.strokeStyle = 'rgba(73, 73, 73, 0.1)';
+      ctx.lineWidth = 1;
+      
+      // Vertical lines
+      for (let x = gridOffsetX; x < canvas.width; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      
+      // Horizontal lines
+      for (let y = gridOffsetY; y < canvas.height; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+      
+      const topLeft = worldToScreen(0, 0);
+      const bottomRight = worldToScreen(WORLD_WIDTH, WORLD_HEIGHT);
+    }
+
+    const PLAYER_RADIUS = 20; // fixed, no pulse/animation
+
+    // Toggle inventory visibility (without dark overlay)
+    function toggleInventory() {
+      inventoryVisible = !inventoryVisible;
+      
+      if (inventoryVisible) {
+        inventory.style.display = 'grid';
+        crosshair.style.display = 'none';
+      } else {
+        inventory.style.display = 'none';
+        crosshair.style.display = 'block';
+      }
+    }
+
+    // Select hotbar slot
+    function selectHotbarSlot(slotIndex) {
+      document.querySelectorAll('.hotbar-slot').forEach((slot, index) => {
+        if (index === slotIndex) {
+          slot.classList.add('active');
+        } else {
+          slot.classList.remove('active');
+        }
+      });
+      
+      // Update equipped item
+      updateEquippedItem();
+    }
+
+    // Draw player with equipped item if any
+    function drawPlayer(worldX, worldY, radius, color, username, angle, playerIdToDraw, equippedItem) {
+      const screenPos = worldToScreen(worldX, worldY);
+      
+      ctx.save();
+      ctx.translate(screenPos.x, screenPos.y);
+      // Rotate so the FRONT (originally up) faces the cursor
+      ctx.rotate(angle + Math.PI / 2);
+
+      // Draw equipped item for the current player
+      if (playerIdToDraw === playerId) {
+        const activeSlot = document.querySelector('.hotbar-slot.active').dataset.slot;
+        if (inventoryItems[activeSlot]) {
+          const item = inventoryItems[activeSlot];
+          
+          // Draw stick for equipped item
+          ctx.save();
+          
+          // Move pivot point to where you want to draw
+          ctx.translate(0, -radius * 1.1); 
+          
+          // Rotate 90° clockwise (π/2 radians)
+          ctx.rotate(-90 * Math.PI / 192);
+          
+          // Draw the stick
+          ctx.fillStyle = '#8B4513'; // Brown color for wood
+          ctx.strokeStyle = '#5D2906'; // Darker brown for outline
+          ctx.lineWidth = 2;
+          
+          // Draw the stick (long rectangle)
+          const stickLength = radius * 2.7;
+          const stickWidth = radius * 0.3;
+          
+          // Main stick body
+          ctx.fillRect(-stickWidth/2, -stickLength/2, stickWidth, stickLength);
+          ctx.strokeRect(-stickWidth/2, -stickLength/2, stickWidth, stickLength);
+          
+          // Add some wood texture/details
+          ctx.strokeStyle = '#A0522D'; // Lighter brown for wood grain
+          ctx.lineWidth = 1;
+          
+          ctx.restore();
+        }
+      }
+      // Draw equipped item for other players
+      else if (equippedItem) {
+        // Draw stick for equipped item
+        ctx.save();
+        
+        // Move pivot point to where you want to draw
+        ctx.translate(0, -radius * 1.1); 
+        
+        // Rotate 90° clockwise (π/2 radians)
+        ctx.rotate(-90 * Math.PI / 192);
+        
+        // Draw the stick
+        ctx.fillStyle = '#8B4513'; // Brown color for wood
+        ctx.strokeStyle = '#5D2906'; // Darker brown for outline
+        ctx.lineWidth = 2;
+        
+        // Draw the stick (long rectangle)
+        const stickLength = radius * 2.7;
+        const stickWidth = radius * 0.3;
+        
+        // Main stick body
+        ctx.fillRect(-stickWidth/2, -stickLength/2, stickWidth, stickLength);
+        ctx.strokeRect(-stickWidth/2, -stickLength/2, stickWidth, stickLength);
+        
+        // Add some wood texture/details
+        ctx.strokeStyle = '#A0522D'; // Lighter brown for wood grain
+        ctx.lineWidth = 1;
+        
+        ctx.restore();
+      }
+
+      // HANDS: same placement as original "ears" — don't touch
+      ctx.fillStyle = color; // Use the player's color for hands
+      ctx.strokeStyle = '#292944';
+      ctx.lineWidth = 1;
+      const handOffsetY = -radius * 0.75; // 25% inside, 75% outside
+
+      // Left hand
+      ctx.beginPath();
+      ctx.arc(-radius * 0.8, handOffsetY, radius * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Right hand
+      ctx.beginPath();
+      ctx.arc(radius * 0.8, handOffsetY, radius * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Body on top - use the player's color
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.fillStyle = color; // Use the player's color for body
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = '#292944';
+      ctx.stroke();
+
+      ctx.restore();
+
+      // Name (not rotated)
+      ctx.fillStyle = '#fff';
+      ctx.font = '12px Arial';
+      const textWidth = ctx.measureText(username).width;
+      ctx.fillText(username, screenPos.x - textWidth / 2, screenPos.y - radius - 15);
+    }
+
+    // Game loop
+    function gameLoop() {
+      // Update camera to follow player
+      if (playerId && players[playerId]) {
+        const player = players[playerId];
+        cameraX = player.x;
+        cameraY = player.y;
+      }
+
+      let dx = 0, dy = 0;
+      if (keys['w'] || keys['ArrowUp']) dy -= 2;
+      if (keys['s'] || keys['ArrowDown']) dy += 2;
+      if (keys['a'] || keys['ArrowLeft']) dx -= 2;
+      if (keys['d'] || keys['ArrowRight']) dx += 2;
+
+      if ((dx || dy) && !inventoryVisible) {
+        const player = players[playerId];
+        const angle = Math.atan2(mouseY - canvas.height / 2, mouseX - canvas.width / 2);
+        
+        // Send movement and rotation together
+        socket.emit('move', {dx, dy, rotation: angle});
+        players[playerId].rotation = angle; // Update local rotation
+        lastRotation = angle;
+      }
+      
+      checkItemProximity();
+      renderGroundItems();
+
+      // Calculate and send rotation updates in the game loop
+      if (playerId && players[playerId] && !inventoryVisible) {
+        const player = players[playerId];
+        const angle = Math.atan2(mouseY - canvas.height / 2, mouseX - canvas.width / 2);
+        
+        // Update rotation on server periodically to reduce network traffic
+        frameCount++;
+        if (frameCount % rotationUpdateRate === 0) {
+          // Only send rotation update if it changed significantly
+          if (Math.abs(angle - lastRotation) > 0.01) {
+            socket.emit('rotate', angle);
+            lastRotation = angle;
+          }
+        }
+        
+        // Always update local rotation for smooth rendering
+        players[playerId].rotation = angle;
+      }
+
+      // Draw everything
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw the world first
+      drawWorld();
+      
+      // Draw players
+      let count = 0;
+      for (let id in players) {
+        count++;
+        const p = players[id];
+        drawPlayer(p.x, p.y, PLAYER_RADIUS, p.color || '#8b5a2b', p.username, p.rotation || 0, id, p.equippedItem);
+      }
+
+      playerCountElement.textContent = count;
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Update players from server
+    socket.on('players', data => {
+      players = data;
+      if (!playerId) playerId = socket.id;
+    });
+    
+    // Handle ground items from server
+    socket.on('groundItems', items => {
+      groundItems = items;
+    });
+    
+    // Handle new dropped item
+    socket.on('itemDropped', item => {
+      groundItems[item.id] = item;
+    });
+    
+    // Handle item removal
+    socket.on('itemRemoved', itemId => {
+      delete groundItems[itemId];
+    });
+    
+    // Handle picked up item
+    socket.on('itemPickedUp', item => {
+      addItemToInventory(item.item);
+    });
+
+    // Handle disconnect from server
+    socket.on('disconnect', () => {
+      window.location.href = 'index.html';
+    });
+   
+    // Initialize inventory system
+    initInventory();
+    setupInventorySlots();
+    
+    gameLoop();
+  </script>
+</body>
+</html>
 
