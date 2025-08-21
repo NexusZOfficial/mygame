@@ -9,16 +9,15 @@ const PORT = process.env.PORT || 3000;
 // Serve static files from the public folder
 app.use(express.static(__dirname + '/public'));
 
-// Store all players
+// Store all players and ground items
 const players = {};
-// Store all ground items
 const groundItems = {};
 const MAX_STACK_SIZE = 50;
 
 io.on('connection', (socket) => {
     console.log(`Player connected: ${socket.id}`);
 
-    // Player joins the game
+    // Player joins
     socket.on('join', (data) => {
         players[socket.id] = {
             id: socket.id,
@@ -29,7 +28,6 @@ io.on('connection', (socket) => {
             rotation: 0,
             equippedItem: null
         };
-
         socket.emit('groundItems', groundItems);
         io.emit('players', players);
     });
@@ -46,7 +44,7 @@ io.on('connection', (socket) => {
         io.emit('players', players);
     });
 
-    // Player equips/unequips items
+    // Equip/unequip items
     socket.on('equipItem', (itemData) => {
         if (players[socket.id]) {
             players[socket.id].equippedItem = itemData;
@@ -127,7 +125,7 @@ io.on('connection', (socket) => {
         socket.emit('itemPickedUp', pickupItem);
     });
 
-    // Update color
+    // Update player color
     socket.on('updateColor', (color) => {
         if (players[socket.id]) {
             players[socket.id].color = color;
